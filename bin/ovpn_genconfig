@@ -42,6 +42,8 @@ usage() {
     echo " -d    Disable NAT routing and default route"
     echo " -c    Enable client-to-client option"
     echo " -D    Disable built in external dns (google dns)"
+    echo " -S    Set DNS suffix"
+    echo " -I    Use custom DNS servers (implies -D)"
     echo " -N    Configure NAT to access external server network"
     echo " -m    Set client MTU"
     echo " -t    Use TAP device (instead of TUN device)"
@@ -67,15 +69,18 @@ OVPN_ROUTES=()
 TMP_ROUTES=()
 OVPN_PUSH=()
 TMP_PUSH=()
+OVPN_INTERNAL_DNS=()
+TMP_INTERNAL_DNS=()
 OVPN_TLS_CIPHER=''
 OVPN_CIPHER=''
 OVPN_AUTH=''
+OVPN_DOMAIN=''
 
 # Import defaults if present
 [ -r "$OVPN_ENV" ] && source "$OVPN_ENV"
 
 # Parse arguments
-while getopts ":a:C:T:r:s:du:cp:DNm:t" opt; do
+while getopts ":a:C:T:r:s:du:cp:DNm:t:I:S:" opt; do
     case $opt in
         a)
             OVPN_AUTH="$OPTARG"
@@ -116,6 +121,13 @@ while getopts ":a:C:T:r:s:du:cp:DNm:t" opt; do
         t)
             OVPN_DEVICE="tap"
             ;;
+	S)
+	    OVPN_DOMAIN=$OPTARG
+	    ;;
+	I)
+            TMP_INTERNAL_DNS+=("$OPTARG")
+	    OVPN_DNS=0
+            ;;
         \?)
             set +x
             echo "Invalid option: -$OPTARG" >&2
@@ -136,6 +148,9 @@ done
 
 # if new push directives were not defined with -p, use default
 [ ${#TMP_PUSH[@]} -gt 0 ] && OVPN_PUSH=("${TMP_PUSH[@]}")
+
+# if new internal DNS directives were not defined with -I, use default
+[ ${#TMP_INTERNAL_DNS[@]} -gt 0 ] && OVPN_INTERNAL_DNS=("${TMP_INTERNAL_DNS[@]}")
 
 # Server name is in the form "udp://vpn.example.com:1194"
 if [[ "$OVPN_SERVER_URL" =~ ^((udp|tcp)://)?([0-9a-zA-Z\.\-]+)(:([0-9]+))?$ ]]; then
@@ -158,6 +173,7 @@ export OVPN_SERVER OVPN_ROUTES OVPN_DEFROUTE
 export OVPN_SERVER_URL OVPN_ENV OVPN_PROTO OVPN_CN OVPN_PORT
 export OVPN_CLIENT_TO_CLIENT OVPN_PUSH OVPN_NAT OVPN_DNS OVPN_MTU OVPN_DEVICE
 export OVPN_TLS_CIPHER OVPN_CIPHER OVPN_AUTH
+export OVPN_DOMAIN OVPN_INTERNAL_DNS
 
 # Preserve config
 if [ -f "$OVPN_ENV" ]; then
@@ -204,6 +220,14 @@ EOF
 [ -n "$OVPN_CLIENT_TO_CLIENT" ] && echo "client-to-client" >> "$conf"
 [ "$OVPN_DNS" == "1" ] && echo push "dhcp-option DNS 8.8.4.4" >> "$conf"
 [ "$OVPN_DNS" == "1" ] && echo push "dhcp-option DNS 8.8.8.8" >> "$conf"
+
+[ -n "$OVPN_DOMAIN" ] && echo push "dhcp-option DOMAIN $OVPN_DOMAIN" >> "$conf"
+
+# Append internal DNS commands
+for i in "${OVPN_INTERNAL_DNS[@]}"; do
+    echo push "dhcp-option DNS $i" >> "$conf"
+done
+
 # Append Routes
 for i in "${OVPN_ROUTES[@]}"; do
     # If user passed "0" skip this, assume no extra routes
