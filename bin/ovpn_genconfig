@@ -75,12 +75,13 @@ OVPN_TLS_CIPHER=''
 OVPN_CIPHER=''
 OVPN_AUTH=''
 OVPN_DOMAIN=''
+OVPN_CLIENT_SPLIT_TRAFFIC=0
 
 # Import defaults if present
 [ -r "$OVPN_ENV" ] && source "$OVPN_ENV"
 
 # Parse arguments
-while getopts ":a:C:T:r:s:du:cp:DNm:t:I:S:" opt; do
+while getopts ":a:C:T:r:s:du:cp:DNm:t:I:S:f" opt; do
     case $opt in
         a)
             OVPN_AUTH="$OPTARG"
@@ -128,6 +129,9 @@ while getopts ":a:C:T:r:s:du:cp:DNm:t:I:S:" opt; do
             TMP_INTERNAL_DNS+=("$OPTARG")
 	    OVPN_DNS=0
             ;;
+	f)
+	    OVPN_CLIENT_SPLIT_TRAFFIC=1
+	    ;;
         \?)
             set +x
             echo "Invalid option: -$OPTARG" >&2
@@ -173,7 +177,7 @@ export OVPN_SERVER OVPN_ROUTES OVPN_DEFROUTE
 export OVPN_SERVER_URL OVPN_ENV OVPN_PROTO OVPN_CN OVPN_PORT
 export OVPN_CLIENT_TO_CLIENT OVPN_PUSH OVPN_NAT OVPN_DNS OVPN_MTU OVPN_DEVICE
 export OVPN_TLS_CIPHER OVPN_CIPHER OVPN_AUTH
-export OVPN_DOMAIN OVPN_INTERNAL_DNS
+export OVPN_DOMAIN OVPN_INTERNAL_DNS OVPN_CLIENT_SPLIT_TRAFFIC
 
 # Preserve config
 if [ -f "$OVPN_ENV" ]; then

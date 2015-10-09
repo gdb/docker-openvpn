@@ -65,7 +65,7 @@ $OVPN_ADDITIONAL_CLIENT_CONFIG
 "
     fi
 
-    if [ "$OVPN_DEFROUTE" != "0" ];then
+    if [ "$OVPN_DEFROUTE" != "0" ] && [ "$OVPN_CLIENT_SPLIT_TRAFFIC" != "1" ];then
         echo "redirect-gateway def1"
     fi
 
